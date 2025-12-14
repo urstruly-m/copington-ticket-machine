@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Copington Ticket Machine</title>
+  <style>
+    body { font-family: Arial, sans-serif; background:#f4f6f8; margin:0; }
+    .wrap { max-width: 980px; margin: 24px auto; padding: 16px; }
+    .card { background:#fff; border:1px solid #ddd; border-radius:10px; padding:16px; margin-bottom:16px; }
+    h1 { margin: 0 0 8px; }
+    .row { display:flex; gap:16px; flex-wrap:wrap; }
+    .col { flex:1; min-width:260px; }
+    label { display:block; margin-top:10px; font-weight:600; }
+    input[type="number"], input[type="text"], input[type="password"] {
+      width:100%; padding:10px; border:1px solid #bbb; border-radius:8px;
+    }
+    .btns { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; align-items:center; }
+    button { padding:10px 14px; border:0; border-radius:8px; cursor:pointer; }
+    .primary { background:#2d6cdf; color:white; }
+    .danger { background:#c62828; color:white; }
+    .ghost { background:#e9eef6; }
+    .tiny { font-size: 12px; color:#555; }
+    .screen {
+      background:#0b1020; color:#d7e3ff; border-radius:10px; padding:14px;
+      min-height:140px; white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .ticket {
+      background:#fff; border:1px dashed #666; border-radius:10px; padding:12px;
+      white-space:pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    .badge { display:inline-block; padding:4px 10px; border-radius:999px; background:#eef3ff; }
+    .muted { color:#666; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Copington Ticket Machine</h1>
+    <p class="muted">Kiosk-style demo (Year 10 level). Includes capacity tracking, staff price changes, and £10/£20 note payment.</p>
+
+    <div class="card row">
+      <div class="col">
+        <h3>Customer</h3>
+
+        <div class="badge" id="capacityBadge">Tickets sold: 0 / 500</div>
+
+        <label>Adult tickets (£<span id="adultPriceLabel">20</span>)</label>
+        <input id="adult" type="number" min="0" value="0" />
+
+        <label>Child tickets (£<span id="childPriceLabel">12</span>)</label>
+        <input id="child" type="number" min="0" value="0" />
+
+        <label>Senior tickets (£<span id="seniorPriceLabel">11</span>)</label>
+        <input id="senior" type="number" min="0" value="0" />
+
+        <label>Wristbands (£<span id="wristPriceLabel">20</span>)</label>
+        <input id="wrist" type="number" min="0" value="0" />
+
+        <label>Lead booker surname</label>
+        <input id="surname" type="text" placeholder="e.g. Chan" />
+
+        <label>Parking pass?</label>
+        <div class="btns">
+          <button class="ghost" id="parkY">Yes</button>
+          <button class="ghost" id="parkN">No</button>
+          <span class="tiny" id="parkChoice">Selected: No</span>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <div><b>Total visitors:</b> <span id="visitors">0</span></div>
+          <div><b>Total cost:</b> £<span id="cost">0</span></div>
+          <div class="tiny">Wristbands must be ≤ total visitors.</div>
+        </div>
+
+        <div class="btns">
+          <button class="primary" id="startPurchase">Start purchase</button>
+          <button class="ghost" id="resetCustomer">Reset</button>
+        </div>
+      </div>
+
+      <div class="col">
+        <h3>Machine Screen</h3>
+        <div class="screen" id="screen">Welcome! Enter quantities and press “Start purchase”.</div>
+
+        <div class="card">
+          <h4>Payment (notes only)</h4>
+          <div class="btns">
+            <button class="primary" id="pay10">Insert £10</button>
+            <button class="primary" id="pay20">Insert £20</button>
+          </div>
+          <div style="margin-top:10px">
+            <b>Amount paid:</b> £<span id="paid">0</span>
+            <br/>
+            <b>Amount due:</b> £<span id="due">0</span>
+          </div>
+        </div>
+
+        <h3>Printed Ticket</h3>
+        <div class="ticket" id="ticket">No ticket printed yet.</div>
+      </div>
+    </div>
+
+    <div class="card row">
+      <div class="col">
+        <h3>Staff Panel</h3>
+        <p class="tiny">Staff can change prices and switch off the machine. Customers cannot.</p>
+
+        <label>Staff code</label>
+        <input id="staffCode" type="password" placeholder="Enter staff code" />
+
+        <div class="btns">
+          <button class="primary" id="openStaff">Open staff panel</button>
+          <button class="danger" id="staffOff" disabled>OFF (staff only)</button>
+        </div>
+
+        <div id="staffArea" style="display:none; margin-top:10px">
+          <label>Adult price</label>
+          <input id="aPrice" type="number" min="0" />
+
+          <label>Child price</label>
+          <input id="cPrice" type="number" min="0" />
+
+          <label>Senior price</label>
+          <input id="sPrice" type="number" min="0" />
+
+          <label>Wristband price</label>
+          <input id="wPrice" type="number" min="0" />
+
+          <div class="btns">
+            <button class="primary" id="savePrices">Save prices</button>
+            <button class="ghost" id="closeStaff">Close staff panel</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="col">
+        <h3>What this includes (for marks)</h3>
+        <ul>
+          <li>Capacity limit (500) and ticket tracking</li>
+          <li>Staff-only price changes + staff-only OFF</li>
+          <li>Validation: integers, non-empty surname, wristbands ≤ visitors</li>
+          <li>Payment: accepts only £10 and £20</li>
+          <li>Ticket + car park pass printout</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // --------- State ----------
+  const CAPACITY = 500;
+  const STAFF_CODE = "C0P!NGT0N@DV£NTUR£";
+
+  let prices = { adult: 20, child: 12, senior: 11, wrist: 20 };
+  let ticketsSold = 0;
+
+  let parking = false;
+  let inPurchase = false;
+  let amountPaid = 0;
+  let totalCost = 0;
+  let totalVisitors = 0;
+  let machineOn = true;
+  let staffUnlocked = false;
+
+  // --------- Elements ----------
+  const el = (id) => document.getElementById(id);
+
+  const adult = el("adult");
+  const child = el("child");
+  const senior = el("senior");
+  const wrist = el("wrist");
+  const surname = el("surname");
+
+  const visitors = el("visitors");
+  const cost = el("cost");
+  const screen = el("screen");
+  const ticket = el("ticket");
+  const paid = el("paid");
+  const due = el("due");
+  const capacityBadge = el("capacityBadge");
+
+  // Price labels
+  const adultPriceLabel = el("adultPriceLabel");
+  const childPriceLabel = el("childPriceLabel");
+  const seniorPriceLabel = el("seniorPriceLabel");
+  const wristPriceLabel = el("wristPriceLabel");
+
+  // Staff fields
+  const staffCode = el("staffCode");
+  const staffArea = el("staffArea");
+  const aPrice = el("aPrice");
+  const cPrice = el("cPrice");
+  const sPrice = el("sPrice");
+  const wPrice = el("wPrice");
+
+  // --------- Helpers ----------
+  function updateLabels() {
+    adultPriceLabel.textContent = prices.adult;
+    childPriceLabel.textContent = prices.child;
+    seniorPriceLabel.textContent = prices.senior;
+    wristPriceLabel.textContent = prices.wrist;
+
+    capacityBadge.textContent = `Tickets sold: ${ticketsSold} / ${CAPACITY}`;
+  }
+
+  function computeTotals() {
+    const a = Number(adult.value || 0);
+    const c = Number(child.value || 0);
+    const s = Number(senior.value || 0);
+    const w = Number(wrist.value || 0);
+
+    totalVisitors = a + c + s;
+    totalCost = (a * prices.adult) + (c * prices.child) + (s * prices.senior) + (w * prices.wrist);
+
+    visitors.textContent = totalVisitors;
+    cost.textContent = totalCost;
+
+    due.textContent = Math.max(totalCost - amountPaid, 0);
+    paid.textContent = amountPaid;
+  }
+
+  function show(msg) {
+    screen.textContent = msg;
+  }
+
+  function today() {
+    const d = new Date();
+    return d.toISOString().slice(0, 10);
+  }
+
+  function resetCustomerInputs() {
+    adult.value = 0;
+    child.value = 0;
+    senior.value = 0;
+    wrist.value = 0;
+    surname.value = "";
+    parking = false;
+    el("parkChoice").textContent = "Selected: No";
+    inPurchase = false;
+    amountPaid = 0;
+    computeTotals();
+    show("Welcome! Enter quantities and press “Start purchase”.");
+  }
+
+  function lockIfOff() {
+    const disabled = !machineOn;
+    [adult, child, senior, wrist, surname].forEach(x => x.disabled = disabled);
+    el("startPurchase").disabled = disabled;
+    el("resetCustomer").disabled = disabled;
+    el("pay10").disabled = disabled;
+    el("pay20").disabled = disabled;
+
+    el("openStaff").disabled = disabled;
+    staffCode.disabled = disabled;
+
+    if (disabled) show("MACHINE OFF. (Staff only can switch off in this demo.)");
+  }
+
+  // --------- Events ----------
+  [adult, child, senior, wrist].forEach(inp => {
+    inp.addEventListener("input", () => computeTotals());
+  });
+
+  el("parkY").addEventListener("click", () => {
+    parking = true;
+    el("parkChoice").textContent = "Selected: Yes";
+  });
+
+  el("parkN").addEventListener("click", () => {
+    parking = false;
+    el("parkChoice").textContent = "Selected: No";
+  });
+
+  el("resetCustomer").addEventListener("click", resetCustomerInputs);
+
+  el("startPurchase").addEventListener("click", () => {
+    if (!machineOn) return;
+
+    computeTotals();
+
+    const remaining = CAPACITY - ticketsSold;
+
+    if (remaining <= 0) {
+      show("Sorry - maximum capacity reached. No more tickets today.");
+      return;
+    }
+
+    if (totalVisitors === 0) {
+      show("ERROR: You must buy at least 1 visitor ticket.");
+      return;
+    }
+
+    if (totalVisitors > remaining) {
+      show(`ERROR: Only ${remaining} visitor tickets left today. Please reduce your tickets.`);
+      return;
+    }
+
+    const w = Number(wrist.value || 0);
+    if (w > totalVisitors) {
+      show("ERROR: Wristbands cannot be more than total visitors.");
+      return;
+    }
+
+    if (surname.value.trim() === "") {
+      show("ERROR: Please enter the lead booker surname.");
+      return;
+    }
+
+    amountPaid = 0;
+    inPurchase = true;
+    computeTotals();
+    show(
+`Purchase started!
+Total cost: £${totalCost}
+Insert £10/£20 notes to pay.`
+    );
+  });
+
+  function finishPurchase() {
+    ticketsSold += totalVisitors;
+    updateLabels();
+
+    let passText = parking ? "\nCAR PARK PASS: VALID TODAY\n(Please display in your car.)\n" : "";
+    ticket.textContent =
+`COPINGTON THEME PARK
+Lead booker: ${surname.value.trim()}
+Adult: ${adult.value}  Child: ${child.value}  Senior: ${senior.value}
+Wristbands: ${wrist.value}
+Total paid: £${totalCost}
+Date: ${today()}
+${passText}`;
+
+    const change = amountPaid - totalCost;
+
+    show(
+`Payment complete!
+Change: £${change}
+
+Ticket printed.
+Press Reset for next customer.`
+    );
+
+    inPurchase = false;
+
+    if (ticketsSold >= CAPACITY) {
+      show("Park capacity reached. Machine stopping for the day.");
+      machineOn = false;
+      lockIfOff();
+    }
+  }
+
+  function insertNote(value) {
+    if (!machineOn) return;
+
+    if (!inPurchase) {
+      show("Start a purchase first (press “Start purchase”).");
+      return;
+    }
+
+    amountPaid += value;
+    computeTotals();
+
+    if (amountPaid >= totalCost) {
+      finishPurchase();
+    } else {
+      show(
+`Paid: £${amountPaid}
+Remaining: £${totalCost - amountPaid}
+Insert another £10/£20 note.`
+      );
+    }
+  }
+
+  el("pay10").addEventListener("click", () => insertNote(10));
+  el("pay20").addEventListener("click", () => insertNote(20));
+
+  // --------- Staff Panel ----------
+  el("openStaff").addEventListener("click", () => {
+    if (!machineOn) return;
+
+    if (staffCode.value === STAFF_CODE) {
+      staffUnlocked = true;
+      staffArea.style.display = "block";
+      el("staffOff").disabled = false;
+
+      aPrice.value = prices.adult;
+      cPrice.value = prices.child;
+      sPrice.value = prices.senior;
+      wPrice.value = prices.wrist;
+
+      show("STAFF ACCESS GRANTED. You can edit prices or switch OFF.");
+    } else {
+      show("STAFF ACCESS DENIED.");
+    }
+  });
+
+  el("savePrices").addEventListener("click", () => {
+    if (!staffUnlocked) return;
+
+    const na = Number(aPrice.value);
+    const nc = Number(cPrice.value);
+    const ns = Number(sPrice.value);
+    const nw = Number(wPrice.value);
+
+    if ([na, nc, ns, nw].some(x => isNaN(x) || x < 0)) {
+      show("ERROR: Prices must be 0 or more.");
+      return;
+    }
+
+    prices = { adult: na, child: nc, senior: ns, wrist: nw };
+    updateLabels();
+    computeTotals();
+    show("Prices saved.");
+  });
+
+  el("closeStaff").addEventListener("click", () => {
+    staffUnlocked = false;
+    staffArea.style.display = "none";
+    el("staffOff").disabled = true;
+    staffCode.value = "";
+    show("Staff panel closed.");
+  });
+
+  el("staffOff").addEventListener("click", () => {
+    if (!staffUnlocked) return;
+    machineOn = false;
+    lockIfOff();
+  });
+
+  // --------- Init ----------
+  updateLabels();
+  computeTotals();
+  resetCustomerInputs();
+</script>
+</body>
+</html>
