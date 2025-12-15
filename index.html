@@ -316,9 +316,8 @@ Insert £10/£20 notes to pay.`
   function finishPurchase() {
     ticketsSold += totalVisitors;
     updateLabels();
-
-    let passText = parking ? "\n-------------------------------------------------------------------------------------------------------\n" : "";
-    let passText = parking ? "\nCAR PARK PASS: VALID TODAY\n(Please display in your car.)\n" : "";
+    
+    let passText = parking ? "\n-------------------------------------------------------------------------------------------------------\nCAR PARK PASS: VALID TODAY\n(Please display in your car.)\n" : "";
     ticket.textContent =
 `COPINGTON THEME PARK
 Lead booker: ${surname.value.trim()}
